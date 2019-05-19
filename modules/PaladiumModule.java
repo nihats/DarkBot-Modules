@@ -26,7 +26,7 @@ import static com.github.manolo8.darkbot.Main.API;
 public class PaladiumModule implements Module {
 
     /**
-     * Paladium Module Test v0.0.2
+     * Paladium Module Test v0.0.3
      * Made by @Dm94Dani
      */
 
@@ -45,6 +45,8 @@ public class PaladiumModule implements Module {
     private long lastCheckupHangar = 0;
     private Main main;
     private HangarManager hangarManager;
+    private long disconectTime = System.currentTimeMillis();
+    private Character exitKey = 'l';
 
     public PaladiumModule() {
         this.lootModule = new LootModule();
@@ -85,6 +87,7 @@ public class PaladiumModule implements Module {
     @Override
     public void tick() {
         if (lastCheckupHangar <= System.currentTimeMillis() - 300000 && main.backpage.sidStatus().contains("OK")) {
+            hangarManager.updateHangars();
             hangarActive = hangarManager.getActiveHangar();
             lastCheckupHangar = System.currentTimeMillis();
         }
@@ -93,7 +96,7 @@ public class PaladiumModule implements Module {
             if (hangarActive == hangerBase) {
 
             } else {
-                hangarManager.changeHangar(hangerBase);
+                disconectAndChangeHangar(hangerBase);
             }
 
         } else if(hangarActive == hangarPalladium) {
@@ -127,8 +130,23 @@ public class PaladiumModule implements Module {
                 }
             }
         } else {
-            hangarActive = hangarManager.getActiveHangar();
+            disconectAndChangeHangar(hangarPalladium);
         }
+    }
+
+    public void disconectAndChangeHangar(String hangar) {
+        if (this.disconectTime == 0) {
+            disconnect();
+        } else if (this.disconectTime <= System.currentTimeMillis() - 20000) {
+            this.hangarManager.changeHangar(hangar);
+        } else {
+            return;
+        }
+    }
+
+    public void disconnect() {
+        API.keyboardClick(this.exitKey);
+        this.disconectTime = System.currentTimeMillis();
     }
 
 }
