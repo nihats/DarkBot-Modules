@@ -16,7 +16,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements Module {
-    //V1 BETA 6
+    //V1 BETA 7
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -61,6 +61,7 @@ public class GGModule implements Module {
     @Override
     public void tick() {
         if (main.hero.map.gg) {
+            main.guiManager.pet.setEnabled(true);
             if (findTarget()) {
                 hero.attackMode();
                 attack.doKillTargetTick();
