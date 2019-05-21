@@ -16,7 +16,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements Module {
-    //V1 BETA 7
+    //V1 BETA 8
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -92,7 +92,7 @@ public class GGModule implements Module {
         if (attack.target == null || attack.target.removed) {
             if (!npcs.isEmpty()) {
                 if (!allLowLife()) {
-                    attack.target = bestNpc();
+                    attack.target = bestNpc(hero.locationInfo.now);
                 } else {
                     attack.target = closestNpc(hero.locationInfo.now);
                 }
@@ -194,10 +194,11 @@ public class GGModule implements Module {
                         .thenComparing(n -> n.health.hpPercent())).orElse(null);
     }
 
-    private Npc bestNpc() {
+    private Npc bestNpc(Location location) {
         return this.npcs.stream()
                 .max(Comparator.<Npc>comparingDouble(n -> n.health.hpPercent())
-                        .thenComparing(n -> n.npcInfo.priority * -1)).orElse(null);
+                        .thenComparing(n -> (n.npcInfo.priority * -1))
+                        .thenComparing(n -> (n.locationInfo.now.distance(location) * -1))).orElse(null);
     }
 
 }
