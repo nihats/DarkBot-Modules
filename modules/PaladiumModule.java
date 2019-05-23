@@ -26,25 +26,23 @@ import static com.github.manolo8.darkbot.Main.API;
 public class PaladiumModule implements Module {
 
     /**
-     * Paladium Module Test v0.0.3
+     * Paladium Module Test v0.0.4
      * Made by @Dm94Dani
      */
 
     private LootModule lootModule;
     private CollectorModule collectorModule;
 
-    private PetManager pet;
     private HeroManager hero;
     private Drive drive;
     private Config config;
     private StatsManager statsManager;
 
-    private String hangarPalladium = ""; /* Put your hangar id */
-    private String hangerBase = ""; /* Put your hangar id */
+    private String hangarPalladium = "0000000"; /* Put your hangar id */
+    private String hangerBase = "0000000"; /* Put your hangar id */
     private String hangarActive = "";
     private long lastCheckupHangar = 0;
     private Main main;
-    private HangarManager hangarManager;
     private long disconectTime = System.currentTimeMillis();
     private Character exitKey = 'l';
 
@@ -60,9 +58,7 @@ public class PaladiumModule implements Module {
         lootModule.install(main);
         collectorModule.install(main);
 
-        this.hangarManager = new HangarManager(main);
         this.main = main;
-        this.pet = main.guiManager.pet;
         this.hero = main.hero;
         this.drive = main.hero.drive;
         this.config = main.config;
@@ -87,47 +83,57 @@ public class PaladiumModule implements Module {
     @Override
     public void tick() {
         if (lastCheckupHangar <= System.currentTimeMillis() - 300000 && main.backpage.sidStatus().contains("OK")) {
-            hangarManager.updateHangars();
-            hangarActive = hangarManager.getActiveHangar();
+            this.main.backpage.hangarManager.updateHangars();
+            hangarActive = this.main.backpage.hangarManager.getActiveHangar();
             lastCheckupHangar = System.currentTimeMillis();
         }
 
         if (statsManager.deposit >= statsManager.depositTotal && statsManager.depositTotal != 0) {
             if (hangarActive == hangerBase) {
+                if (this.hero.map.id == 92){
+
+                } else {
+                    hero.roamMode();
+                    this.main.setModule(new MapModule()).setTarget(this.main.starManager.byId(92));
+                }
 
             } else {
                 disconectAndChangeHangar(hangerBase);
             }
 
         } else if(hangarActive == hangarPalladium) {
-            if (collectorModule.isNotWaiting() && lootModule.checkDangerousAndCurrentMap()) {
-                pet.setEnabled(true);
+            if (this.hero.map.id == 93){
+                if (collectorModule.isNotWaiting() && lootModule.checkDangerousAndCurrentMap()) {
+                    main.guiManager.pet.setEnabled(true);
 
-                if (lootModule.findTarget()) {
+                    if (lootModule.findTarget()) {
 
-                    collectorModule.findBox();
+                        collectorModule.findBox();
 
-                    Box box = collectorModule.current;
+                        Box box = collectorModule.current;
 
-                    if (box == null || box.locationInfo.distance(hero) > config.LOOT_COLLECT.RADIUS
-                            || lootModule.attack.target.health.hpPercent() < 0.25) {
-                        lootModule.moveToAnSafePosition();
+                        if (box == null || box.locationInfo.distance(hero) > config.LOOT_COLLECT.RADIUS
+                                || lootModule.attack.target.health.hpPercent() < 0.25) {
+                            lootModule.moveToAnSafePosition();
+                        } else {
+                            collectorModule.tryCollectNearestBox();
+                        }
+
+                        lootModule.ignoreInvalidTarget();
+                        lootModule.attack.doKillTargetTick();
+
                     } else {
-                        collectorModule.tryCollectNearestBox();
+                        hero.roamMode();
+                        collectorModule.findBox();
+
+                        if (!collectorModule.tryCollectNearestBox() && (!drive.isMoving() || drive.isOutOfMap())) {
+                            drive.moveRandom();
+                        }
                     }
-
-                    lootModule.ignoreInvalidTarget();
-                    lootModule.attack.doKillTargetTick();
-
-                } else {
-                    hero.roamMode();
-                    collectorModule.findBox();
-
-                    if (!collectorModule.tryCollectNearestBox() && (!drive.isMoving() || drive.isOutOfMap())) {
-                        drive.moveRandom();
                 }
-
-                }
+            } else {
+                hero.roamMode();
+                this.main.setModule(new MapModule()).setTarget(this.main.starManager.byId(93));
             }
         } else {
             disconectAndChangeHangar(hangarPalladium);
@@ -138,7 +144,7 @@ public class PaladiumModule implements Module {
         if (this.disconectTime == 0) {
             disconnect();
         } else if (this.disconectTime <= System.currentTimeMillis() - 20000) {
-            this.hangarManager.changeHangar(hangar);
+            this.main.backpage.hangarManager.changeHangar(hangar);
         } else {
             return;
         }

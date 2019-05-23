@@ -68,7 +68,7 @@ public class GGModule implements Module {
                 removeLowHeal();
                 moveToAnSafePosition();
             } else if (!main.mapManager.entities.portals.isEmpty()) {
-                hero.runMode();
+                hero.roamMode();
                 this.main.setModule(new MapModule()).setTarget(main.starManager.byId(main.mapManager.entities.portals.get(0).id));
             } else if (!drive.isMoving()) {
                 drive.moveRandom();
