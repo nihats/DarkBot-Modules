@@ -2,23 +2,30 @@ package com.github.manolo8.darkbot.modules;
 
 import com.github.manolo8.darkbot.Main;
 import com.github.manolo8.darkbot.config.Config;
+import com.github.manolo8.darkbot.config.types.Editor;
+import com.github.manolo8.darkbot.config.types.Options;
+import com.github.manolo8.darkbot.config.types.suppliers.OptionList;
 import com.github.manolo8.darkbot.core.entities.Npc;
 import com.github.manolo8.darkbot.core.manager.HeroManager;
+import com.github.manolo8.darkbot.core.manager.StarManager;
 import com.github.manolo8.darkbot.core.utils.Drive;
 import com.github.manolo8.darkbot.core.utils.Location;
+import com.github.manolo8.darkbot.gui.tree.components.JListField;
 import com.github.manolo8.darkbot.modules.utils.NpcAttacker;
 import com.github.manolo8.darkbot.config.types.Option;
 import com.github.manolo8.darkbot.core.itf.CustomModule;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Supplier;
 
 import static com.github.manolo8.darkbot.Main.API;
 import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 10";
+    private String version = "v1 Beta 11";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -28,6 +35,7 @@ public class GGModule implements CustomModule {
     private Drive drive;
     private Location direction;
     private int radiusFix;
+    private GGConfig ggConfig;
 
     private boolean repairing;
     private int rangeNPCFix = 0;
@@ -41,9 +49,13 @@ public class GGModule implements CustomModule {
     }
 
     public static class GGConfig {
-        @Option("Honor Formation")
+        @Option("Honor Formation Key")
         public char honorFormation = '9';
 
+        @Option("GG Gate")
+        @Editor(value = JListField.class)
+        @Options(value = GGSuplier.class)
+        public int idGate = 51;
     }
 
     @Override
@@ -59,7 +71,33 @@ public class GGModule implements CustomModule {
         this.hero = main.hero;
         this.drive = main.hero.drive;
         this.npcs = main.mapManager.entities.npcs;
-        main.starManager.getGGMaps();
+        this.ggConfig = new GGConfig();
+    }
+
+    public static class GGSuplier implements Supplier<OptionList> {
+        @Override
+        public OptionList<Integer> get() {
+            return new GGList();
+        }
+    }
+
+    public static class GGList extends OptionList<Integer> {
+        private static final StarManager starManager = new StarManager();
+
+        @Override
+        public Integer getValue(String text) {
+            return starManager.byName(text).id;
+        }
+
+        @Override
+        public String getText(Integer value) {
+            return starManager.byId(value).name;
+        }
+
+        @Override
+        public List<String> getOptions() {
+            return new ArrayList<>(starManager.getGGMaps());
+        }
     }
 
     @Override
@@ -87,20 +125,12 @@ public class GGModule implements CustomModule {
                 this.main.setModule(new MapModule()).setTarget(main.starManager.byId(main.mapManager.entities.portals.get(0).id));
             } else if (!drive.isMoving()) {
                 drive.moveRandom();
-                API.keyboardClick(new GGConfig().honorFormation);
+                API.keyboardClick(ggConfig.honorFormation);
                 hero.runMode();
-            }
-        } else if ( main.hero.map.id == 1 || main.hero.map.id == 5 || main.hero.map.id == 9) {
-            hero.roamMode();
-            for (int i=0; i < main.mapManager.entities.portals.size();i++){
-                if (main.mapManager.entities.portals.get(i).target.gg && main.mapManager.entities.portals.get(i).target.id != 203){
-                    this.main.setModule(new MapModule()).setTarget(main.starManager.byId(main.mapManager.entities.portals.get(i).id));
-                    return;
-                }
             }
         } else {
             hero.roamMode();
-            this.main.setModule(new MapModule()).setTarget(this.main.starManager.byName("Home Map"));
+            this.main.setModule(new MapModule()).setTarget(main.starManager.byId(ggConfig.idGate));
         }
     }
 
