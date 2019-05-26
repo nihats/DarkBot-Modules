@@ -3,20 +3,22 @@ package com.github.manolo8.darkbot.modules;
 import com.github.manolo8.darkbot.Main;
 import com.github.manolo8.darkbot.config.Config;
 import com.github.manolo8.darkbot.core.entities.Npc;
-import com.github.manolo8.darkbot.core.itf.Module;
 import com.github.manolo8.darkbot.core.manager.HeroManager;
 import com.github.manolo8.darkbot.core.utils.Drive;
 import com.github.manolo8.darkbot.core.utils.Location;
 import com.github.manolo8.darkbot.modules.utils.NpcAttacker;
+import com.github.manolo8.darkbot.config.types.Option;
+import com.github.manolo8.darkbot.core.itf.CustomModule;
 
 import java.util.Comparator;
 import java.util.List;
 
+import static com.github.manolo8.darkbot.Main.API;
 import static java.lang.Double.max;
 import static java.lang.Double.min;
 
-public class GGModule implements Module {
-    //V1 BETA 8
+public class GGModule implements CustomModule {
+    //V1 BETA 9
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -34,16 +36,28 @@ public class GGModule implements Module {
     private int lasPlayerHealth = 0;
     NpcAttacker attack;
 
-    @Override
+    public Object configuration() {
+        return new GGConfig();
+    }
 
+    public static class GGConfig {
+        @Option("Honor Formation")
+        public char honorFormation = '9';
+
+    }
+
+    @Override
+    public String name() {
+        return "GG Module";
+    }
+
+    @Override
     public void install(Main main) {
         this.main = main;
         this.config = main.config;
         this.attack = new NpcAttacker(main);
-
         this.hero = main.hero;
         this.drive = main.hero.drive;
-
         this.npcs = main.mapManager.entities.npcs;
     }
 
@@ -72,6 +86,7 @@ public class GGModule implements Module {
                 this.main.setModule(new MapModule()).setTarget(main.starManager.byId(main.mapManager.entities.portals.get(0).id));
             } else if (!drive.isMoving()) {
                 drive.moveRandom();
+                API.keyboardClick(new GGConfig().honorFormation);
                 hero.runMode();
             }
         } else if ( main.hero.map.id == 1 || main.hero.map.id == 5 || main.hero.map.id == 9) {

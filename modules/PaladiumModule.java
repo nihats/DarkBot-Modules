@@ -2,31 +2,20 @@ package com.github.manolo8.darkbot.modules;
 
 import com.github.manolo8.darkbot.Main;
 import com.github.manolo8.darkbot.config.Config;
+import com.github.manolo8.darkbot.config.types.Option;
 import com.github.manolo8.darkbot.core.entities.Box;
-import com.github.manolo8.darkbot.core.itf.Module;
-import com.github.manolo8.darkbot.core.manager.HangarManager;
+import com.github.manolo8.darkbot.core.itf.CustomModule;
+import com.github.manolo8.darkbot.backpage.HangarManager;
 import com.github.manolo8.darkbot.core.manager.HeroManager;
-import com.github.manolo8.darkbot.core.manager.PetManager;
 import com.github.manolo8.darkbot.core.manager.StatsManager;
 import com.github.manolo8.darkbot.core.utils.Drive;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.Base64;
 
 import static com.github.manolo8.darkbot.Main.API;
 
-public class PaladiumModule implements Module {
+public class PaladiumModule implements CustomModule {
 
     /**
-     * Paladium Module Test v0.0.4
+     * Paladium Module Test v0.0.5
      * Made by @Dm94Dani
      */
 
@@ -38,17 +27,32 @@ public class PaladiumModule implements Module {
     private Config config;
     private StatsManager statsManager;
 
-    private String hangarPalladium = "0000000"; /* Put your hangar id */
-    private String hangerBase = "0000000"; /* Put your hangar id */
     private String hangarActive = "";
     private long lastCheckupHangar = 0;
     private Main main;
     private long disconectTime = System.currentTimeMillis();
-    private Character exitKey = 'l';
+    private PaladiumConfig configPa;
+    private HangarManager hangarManager;
 
-    public PaladiumModule() {
-        this.lootModule = new LootModule();
-        this.collectorModule = new CollectorModule();
+    public Object configuration() {
+        return new PaladiumConfig();
+    }
+
+    public static class PaladiumConfig {
+        @Option("Exit Key")
+        public char exitKey = 'l';
+
+        @Option(value = "Hangar Palladium", description = "Ship 5-3 Hangar ID")
+        public String hangarPalladium = "";
+
+        @Option(value = "Hangar Base", description = "Ship 5-2 Hangar ID")
+        public String hangarBase = "";
+
+    }
+
+    @Override
+    public String name() {
+        return "Paladium Module";
     }
 
     @Override
@@ -63,6 +67,9 @@ public class PaladiumModule implements Module {
         this.drive = main.hero.drive;
         this.config = main.config;
         this.statsManager = main.statsManager;
+        this.configPa = new PaladiumConfig();
+        this.hangarManager = new HangarManager(main,main.backpage);
+
     }
 
     @Override
@@ -83,13 +90,13 @@ public class PaladiumModule implements Module {
     @Override
     public void tick() {
         if (lastCheckupHangar <= System.currentTimeMillis() - 300000 && main.backpage.sidStatus().contains("OK")) {
-            this.main.backpage.hangarManager.updateHangars();
-            hangarActive = this.main.backpage.hangarManager.getActiveHangar();
+            hangarManager.updateHangars();
+            hangarActive = hangarManager.getActiveHangar();
             lastCheckupHangar = System.currentTimeMillis();
         }
 
         if (statsManager.deposit >= statsManager.depositTotal && statsManager.depositTotal != 0) {
-            if (hangarActive == hangerBase) {
+            if (hangarActive == configPa.hangarBase) {
                 if (this.hero.map.id == 92){
 
                 } else {
@@ -98,10 +105,10 @@ public class PaladiumModule implements Module {
                 }
 
             } else {
-                disconectAndChangeHangar(hangerBase);
+                disconectAndChangeHangar(configPa.hangarBase);
             }
 
-        } else if(hangarActive == hangarPalladium) {
+        } else if(hangarActive == configPa.hangarPalladium) {
             if (this.hero.map.id == 93){
                 if (collectorModule.isNotWaiting() && lootModule.checkDangerousAndCurrentMap()) {
                     main.guiManager.pet.setEnabled(true);
@@ -136,7 +143,7 @@ public class PaladiumModule implements Module {
                 this.main.setModule(new MapModule()).setTarget(this.main.starManager.byId(93));
             }
         } else {
-            disconectAndChangeHangar(hangarPalladium);
+            disconectAndChangeHangar(configPa.hangarPalladium);
         }
     }
 
@@ -144,14 +151,14 @@ public class PaladiumModule implements Module {
         if (this.disconectTime == 0) {
             disconnect();
         } else if (this.disconectTime <= System.currentTimeMillis() - 20000) {
-            this.main.backpage.hangarManager.changeHangar(hangar);
+            hangarManager.changeHangar(hangar);
         } else {
             return;
         }
     }
 
     public void disconnect() {
-        API.keyboardClick(this.exitKey);
+        API.keyboardClick(this.configPa.exitKey);
         this.disconectTime = System.currentTimeMillis();
     }
 
