@@ -18,7 +18,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    //V1 BETA 9
+    private String version = "v1 Beta 10";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -59,6 +59,7 @@ public class GGModule implements CustomModule {
         this.hero = main.hero;
         this.drive = main.hero.drive;
         this.npcs = main.mapManager.entities.npcs;
+        main.starManager.getGGMaps();
     }
 
     @Override
@@ -68,7 +69,7 @@ public class GGModule implements CustomModule {
 
     @Override
     public String status() {
-        return (repairing ? "Repairing" :
+        return name() + " " + version + " | " + (repairing ? "Repairing" :
                 attack.hasTarget() ? attack.status() : "Roaming") + " | NPCs: "+this.npcs.size();
     }
 
