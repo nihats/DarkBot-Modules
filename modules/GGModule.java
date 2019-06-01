@@ -5,9 +5,11 @@ import com.github.manolo8.darkbot.config.Config;
 import com.github.manolo8.darkbot.config.types.Editor;
 import com.github.manolo8.darkbot.config.types.Options;
 import com.github.manolo8.darkbot.config.types.suppliers.OptionList;
+import com.github.manolo8.darkbot.core.entities.Box;
 import com.github.manolo8.darkbot.core.entities.Npc;
 import com.github.manolo8.darkbot.core.manager.HeroManager;
 import com.github.manolo8.darkbot.core.manager.StarManager;
+import com.github.manolo8.darkbot.core.objects.LocationInfo;
 import com.github.manolo8.darkbot.core.utils.Drive;
 import com.github.manolo8.darkbot.core.utils.Location;
 import com.github.manolo8.darkbot.gui.tree.components.JListField;
@@ -25,7 +27,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 14";
+    private String version = "v1 Beta 15";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -43,6 +45,11 @@ public class GGModule implements CustomModule {
     private int lasNpcHealth = 0;
     private int lasPlayerHealth = 0;
     NpcAttacker attack;
+
+
+    Box current;
+    private long waiting;
+    private List<Box> boxes;
 
     public Object configuration() {
         return ggConfig;
@@ -71,6 +78,8 @@ public class GGModule implements CustomModule {
         this.hero = main.hero;
         this.drive = main.hero.drive;
         this.npcs = main.mapManager.entities.npcs;
+
+        this.boxes = main.mapManager.entities.boxes;
     }
 
     public static class GGSuplier implements Supplier<OptionList> {
@@ -122,11 +131,18 @@ public class GGModule implements CustomModule {
                 moveToAnSafePosition();
             } else if (!main.mapManager.entities.portals.isEmpty()) {
                 hero.roamMode();
-                this.main.setModule(new MapModule()).setTarget(main.starManager.byId(main.mapManager.entities.portals.get(0).id));
+                findBox();
+                if (!tryCollectNearestBox() && (!drive.isMoving() || drive.isOutOfMap())) {
+                    if (hero.health.hpPercent() >= config.GENERAL.SAFETY.REPAIR_TO_HP) {
+                        repairing = false;
+                        this.main.setModule(new MapModule()).setTarget(main.starManager.byId(main.mapManager.entities.portals.get(0).id));
+                    } else {
+                        repairing = true;
+                    }
+                }
             } else if (!drive.isMoving()) {
                 drive.moveRandom();
                 API.keyboardClick(ggConfig.honorFormation);
-                hero.runMode();
             }
         } else {
             hero.roamMode();
@@ -247,6 +263,62 @@ public class GGModule implements CustomModule {
                 .max(Comparator.<Npc>comparingDouble(n -> n.health.hpPercent())
                         .thenComparing(n -> (n.npcInfo.priority * -1))
                         .thenComparing(n -> (n.locationInfo.now.distance(location) * -1))).orElse(null);
+    }
+
+
+    /**
+     * Collector Module
+     */
+
+    public void findBox() {
+        LocationInfo locationInfo = hero.locationInfo;
+
+        Box best = boxes.stream()
+                .filter(this::canCollect)
+                .min(Comparator.comparingDouble(locationInfo::distance)).orElse(null);
+        this.current = current == null || best == null || current.isCollected() || isBetter(best) ? best : current;
+    }
+
+    private boolean canCollect(Box box) {
+        return box.boxInfo.collect
+                && !box.isCollected()
+                && (drive.canMove(box.locationInfo.now));
+    }
+
+    private boolean isBetter(Box box) {
+
+        double currentDistance = current.locationInfo.distance(hero);
+        double newDistance = box.locationInfo.distance(hero);
+
+        return currentDistance > 100 && currentDistance - 150 > newDistance;
+    }
+
+    public boolean tryCollectNearestBox() {
+
+        if (current != null) {
+            collectBox();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void collectBox() {
+        double distance = hero.locationInfo.distance(current);
+
+        if (distance < 200) {
+            drive.stop(false);
+            current.clickable.setRadius(800);
+            drive.clickCenter(true, current.locationInfo.now);
+            current.clickable.setRadius(0);
+
+            current.setCollected(true);
+
+            waiting = System.currentTimeMillis() + current.boxInfo.waitTime + hero.timeTo(distance) + 30;
+
+        } else {
+            drive.move(current);
+        }
     }
 
 }
