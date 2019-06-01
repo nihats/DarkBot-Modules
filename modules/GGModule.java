@@ -25,7 +25,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 13";
+    private String version = "v1 Beta 14";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -115,6 +115,7 @@ public class GGModule implements CustomModule {
         if (main.hero.map.gg) {
             main.guiManager.pet.setEnabled(true);
             if (findTarget()) {
+                API.keyboardClick(config.GENERAL.OFFENSIVE.FORMATION);
                 hero.attackMode();
                 attack.doKillTargetTick();
                 removeLowHeal();
