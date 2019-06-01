@@ -25,7 +25,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 12";
+    private String version = "v1 Beta 13";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -35,7 +35,7 @@ public class GGModule implements CustomModule {
     private Drive drive;
     private Location direction;
     private int radiusFix;
-    private GGConfig ggConfig;
+    private GGConfig ggConfig = new GGConfig();
 
     private boolean repairing;
     private int rangeNPCFix = 0;
@@ -45,7 +45,7 @@ public class GGModule implements CustomModule {
     NpcAttacker attack;
 
     public Object configuration() {
-        return new GGConfig();
+        return ggConfig;
     }
 
     public static class GGConfig {
@@ -71,7 +71,6 @@ public class GGModule implements CustomModule {
         this.hero = main.hero;
         this.drive = main.hero.drive;
         this.npcs = main.mapManager.entities.npcs;
-        this.ggConfig = new GGConfig();
     }
 
     public static class GGSuplier implements Supplier<OptionList> {
