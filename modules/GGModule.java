@@ -25,7 +25,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 11";
+    private String version = "v1 Beta 12";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
