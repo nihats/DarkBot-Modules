@@ -57,10 +57,8 @@ public class PaladiumModule implements CustomModule {
 
     @Override
     public void install(Main main) {
-        lootModule = new LootModule();
-        collectorModule = new CollectorModule();
-        lootModule.install(main);
-        collectorModule.install(main);
+        this.lootModule = new LootModule();
+        this.collectorModule = new CollectorModule();
 
         this.main = main;
         this.hero = main.hero;
@@ -69,6 +67,8 @@ public class PaladiumModule implements CustomModule {
         this.statsManager = main.statsManager;
         this.configPa = new PaladiumConfig();
         this.hangarManager = new HangarManager(main,main.backpage);
+        this.lootModule.install(main);
+        this.collectorModule.install(main);
 
     }
 

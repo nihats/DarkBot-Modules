@@ -235,6 +235,7 @@ public class GGModule implements CustomModule {
 
     private Npc closestNpc(Location location) {
         return this.npcs.stream()
+                .filter(n -> (!n.ish))
                 .min(Comparator.<Npc>comparingDouble(n -> n.locationInfo.now.distance(location))
                         .thenComparing(n -> n.npcInfo.priority)
                         .thenComparing(n -> n.health.hpPercent())).orElse(null);
@@ -242,6 +243,7 @@ public class GGModule implements CustomModule {
 
     private Npc bestNpc(Location location) {
         return this.npcs.stream()
+                .filter(n -> (!n.ish))
                 .max(Comparator.<Npc>comparingDouble(n -> n.health.hpPercent())
                         .thenComparing(n -> (n.npcInfo.priority * -1))
                         .thenComparing(n -> (n.locationInfo.now.distance(location) * -1))).orElse(null);
