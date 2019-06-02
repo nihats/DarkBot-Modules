@@ -179,6 +179,7 @@ public class GGModule implements CustomModule {
                         repairing = false;
                         this.main.setModule(new MapModule()).setTarget(main.starManager.byId(main.mapManager.entities.portals.get(0).id));
                     } else {
+                        drive.moveRandom();
                         repairing = true;
                     }
                 }
@@ -254,9 +255,7 @@ public class GGModule implements CustomModule {
         double angle = targetLoc.angle(heroLoc), distance = heroLoc.distance(targetLoc), radius = target.npcInfo.radius;;
 
         dinamicNPCRange(distance);
-        if (radius < 500) {
-            radius = 550;
-        }
+
         radius += rangeNPCFix;
 
         if (distance > radius) {
