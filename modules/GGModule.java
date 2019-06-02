@@ -75,6 +75,9 @@ public class GGModule implements CustomModule {
         @Editor(value = JListField.class)
         @Options(value = GGSuplier.class)
         public int idGate = 51;
+
+        @Option("Take materials")
+        public boolean takeBoxes = true;
     }
 
     @Override
@@ -173,7 +176,8 @@ public class GGModule implements CustomModule {
                 moveToAnSafePosition();
             } else if (!main.mapManager.entities.portals.isEmpty() && isNotWaiting()) {
                 hero.roamMode();
-                findBox();
+
+                if (ggConfig.takeBoxes) { findBox();}
                 if (!tryCollectNearestBox() && (!drive.isMoving() || drive.isOutOfMap())) {
                     if (hero.health.hpPercent() >= config.GENERAL.SAFETY.REPAIR_TO_HP) {
                         repairing = false;
