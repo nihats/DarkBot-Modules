@@ -5,14 +5,13 @@ import com.github.manolo8.darkbot.config.Config;
 import com.github.manolo8.darkbot.config.types.Editor;
 import com.github.manolo8.darkbot.config.types.Options;
 import com.github.manolo8.darkbot.config.types.suppliers.OptionList;
-import com.github.manolo8.darkbot.core.entities.Box;
 import com.github.manolo8.darkbot.core.entities.Npc;
 import com.github.manolo8.darkbot.core.manager.HeroManager;
 import com.github.manolo8.darkbot.core.manager.StarManager;
-import com.github.manolo8.darkbot.core.objects.LocationInfo;
 import com.github.manolo8.darkbot.core.utils.Drive;
 import com.github.manolo8.darkbot.core.utils.Location;
 import com.github.manolo8.darkbot.gui.tree.components.JListField;
+import com.github.manolo8.darkbot.gui.tree.components.JShipConfigField;
 import com.github.manolo8.darkbot.modules.utils.NpcAttacker;
 import com.github.manolo8.darkbot.config.types.Option;
 import com.github.manolo8.darkbot.core.itf.CustomModule;
@@ -27,12 +26,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Supplier;
 
-import static com.github.manolo8.darkbot.Main.API;
 import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 17";
+    private String version = "v1 Beta 18";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -51,10 +49,7 @@ public class GGModule implements CustomModule {
     private int lasPlayerHealth = 0;
     NpcAttacker attack;
 
-
-    Box current;
-    private long waiting;
-    private List<Box> boxes;
+    private final CollectorModule collectorModule;
 
     private static final Gson GSON = new GsonBuilder()
             .setPrettyPrinting()
@@ -68,8 +63,9 @@ public class GGModule implements CustomModule {
     }
 
     public static class GGConfig {
-        @Option("Honor Formation Key")
-        public char honorFormation = '9';
+        @Option(value = "Honor config", description = "Used on finish wave")
+        @Editor(JShipConfigField.class)
+        public Config.ShipConfig Honor = new Config.ShipConfig();
 
         @Option("GG Gate")
         @Editor(value = JListField.class)
@@ -77,13 +73,18 @@ public class GGModule implements CustomModule {
         public int idGate = 51;
 
         @Option("Take materials")
-        public boolean takeBoxes = true;
+        public boolean takeBoxes = false;
     }
 
     @Override
     public String name() {
         return "GG Module";
     }
+
+    public GGModule() {
+        this.collectorModule = new CollectorModule();
+    }
+
 
     @Override
     public void install(Main main) {
@@ -94,8 +95,7 @@ public class GGModule implements CustomModule {
         this.drive = main.hero.drive;
         this.npcs = main.mapManager.entities.npcs;
 
-        this.boxes = main.mapManager.entities.boxes;
-
+        collectorModule.install(main);
         loadConfig();
     }
 
@@ -162,23 +162,24 @@ public class GGModule implements CustomModule {
     @Override
     public void tick() {
         if (!configSave) {
-            saveConfig();
+            loadConfig();
             configSave = true;
         }
 
         if (main.hero.map.gg) {
             main.guiManager.pet.setEnabled(true);
             if (findTarget()) {
-                API.keyboardClick(config.GENERAL.OFFENSIVE.FORMATION);
                 hero.attackMode();
                 attack.doKillTargetTick();
                 removeLowHeal();
                 moveToAnSafePosition();
-            } else if (!main.mapManager.entities.portals.isEmpty() && isNotWaiting()) {
+            } else if (!main.mapManager.entities.portals.isEmpty() && collectorModule.isNotWaiting()) {
                 hero.roamMode();
 
-                if (ggConfig.takeBoxes) { findBox();}
-                if (!tryCollectNearestBox() && (!drive.isMoving() || drive.isOutOfMap())) {
+                if (ggConfig.takeBoxes) {
+                    collectorModule.findBox();
+                }
+                if (!collectorModule.tryCollectNearestBox() && (!drive.isMoving() || drive.isOutOfMap())) {
                     if (hero.health.hpPercent() >= config.GENERAL.SAFETY.REPAIR_TO_HP) {
                         repairing = false;
                         this.main.setModule(new MapModule()).setTarget(main.starManager.byId(main.mapManager.entities.portals.get(0).id));
@@ -188,8 +189,8 @@ public class GGModule implements CustomModule {
                     }
                 }
             } else if (!drive.isMoving()) {
+                hero.setMode(ggConfig.Honor);
                 drive.moveRandom();
-                API.keyboardClick(ggConfig.honorFormation);
             }
         } else if ( main.hero.map.id == 1 || main.hero.map.id == 5 || main.hero.map.id == 9) {
             hero.roamMode();
@@ -317,65 +318,6 @@ public class GGModule implements CustomModule {
                         .thenComparing(n -> (n.locationInfo.now.distance(location)))).orElse(null);
     }
 
-
-    /**
-     * Collector Module
-     */
-
-    public void findBox() {
-        LocationInfo locationInfo = hero.locationInfo;
-
-        Box best = boxes.stream()
-                .filter(this::canCollect)
-                .min(Comparator.comparingDouble(locationInfo::distance)).orElse(null);
-        this.current = current == null || best == null || current.isCollected() || isBetter(best) ? best : current;
-    }
-
-    private boolean canCollect(Box box) {
-        return box.boxInfo.collect
-                && !box.isCollected()
-                && (drive.canMove(box.locationInfo.now));
-    }
-
-    private boolean isBetter(Box box) {
-
-        double currentDistance = current.locationInfo.distance(hero);
-        double newDistance = box.locationInfo.distance(hero);
-
-        return currentDistance > 100 && currentDistance - 150 > newDistance;
-    }
-
-    public boolean tryCollectNearestBox() {
-
-        if (current != null) {
-            collectBox();
-            return true;
-        }
-
-        return false;
-    }
-
-    private void collectBox() {
-        double distance = hero.locationInfo.distance(current);
-
-        if (distance < 200) {
-            drive.stop(false);
-            current.clickable.setRadius(800);
-            drive.clickCenter(true, current.locationInfo.now);
-            current.clickable.setRadius(0);
-
-            current.setCollected(true);
-
-            waiting = System.currentTimeMillis() + current.boxInfo.waitTime + hero.timeTo(distance) + 30;
-
-        } else {
-            drive.move(current);
-        }
-    }
-
-    public boolean isNotWaiting() {
-        return System.currentTimeMillis() > waiting;
-    }
 
 }
 
