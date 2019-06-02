@@ -193,6 +193,7 @@ public class GGModule implements CustomModule {
                 drive.moveRandom();
             }
         } else if ( main.hero.map.id == 1 || main.hero.map.id == 5 || main.hero.map.id == 9) {
+            if (ggConfig.idGate == 73){ ggConfig.idGate = 71; }
             hero.roamMode();
             for (int i=0; i < main.mapManager.entities.portals.size();i++){
                 if (main.mapManager.entities.portals.get(i).target.id == ggConfig.idGate){
