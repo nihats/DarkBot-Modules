@@ -242,7 +242,7 @@ public class GGModule implements CustomModule {
         int npcsLowLife = 0;
 
         for (int i=0; i < npcs.size();i++) {
-            if (isLowHealh(npcs.get(i))) {
+            if (isLowHealh(npcs.get(i)) || npcs.get(i).ish) {
                 npcsLowLife++;
             }
         }
