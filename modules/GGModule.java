@@ -16,7 +16,12 @@ import com.github.manolo8.darkbot.gui.tree.components.JListField;
 import com.github.manolo8.darkbot.modules.utils.NpcAttacker;
 import com.github.manolo8.darkbot.config.types.Option;
 import com.github.manolo8.darkbot.core.itf.CustomModule;
+import com.github.manolo8.darkbot.utils.ByteArrayToBase64TypeAdapter;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -27,7 +32,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 16";
+    private String version = "v1 Beta 17";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -50,6 +55,13 @@ public class GGModule implements CustomModule {
     Box current;
     private long waiting;
     private List<Box> boxes;
+
+    private static final Gson GSON = new GsonBuilder()
+            .setPrettyPrinting()
+            .setLenient()
+            .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToBase64TypeAdapter()).create();
+    private boolean configSave = false;
+
 
     public Object configuration() {
         return ggConfig;
@@ -80,6 +92,8 @@ public class GGModule implements CustomModule {
         this.npcs = main.mapManager.entities.npcs;
 
         this.boxes = main.mapManager.entities.boxes;
+
+        loadConfig();
     }
 
     public static class GGSuplier implements Supplier<OptionList> {
@@ -108,6 +122,29 @@ public class GGModule implements CustomModule {
         }
     }
 
+    private void loadConfig() {
+        File config = new File("ggconfig.json");
+        if (!config.exists()) {
+            saveConfig();
+            return;
+        }
+        try (InputStreamReader reader = new InputStreamReader(new FileInputStream(config), StandardCharsets.UTF_8)) {
+            this.ggConfig = GSON.fromJson(reader, GGConfig.class);
+            if (this.ggConfig == null) this.ggConfig = new GGConfig();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void saveConfig() {
+        File config = new File("ggconfig.json");
+        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(config), StandardCharsets.UTF_8)) {
+            GSON.toJson(this.ggConfig, writer);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public boolean canRefresh() {
         return attack.target == null;
@@ -121,6 +158,11 @@ public class GGModule implements CustomModule {
 
     @Override
     public void tick() {
+        if (!configSave) {
+            saveConfig();
+            configSave = true;
+        }
+
         if (main.hero.map.gg) {
             main.guiManager.pet.setEnabled(true);
             if (findTarget()) {
@@ -129,7 +171,7 @@ public class GGModule implements CustomModule {
                 attack.doKillTargetTick();
                 removeLowHeal();
                 moveToAnSafePosition();
-            } else if (!main.mapManager.entities.portals.isEmpty()) {
+            } else if (!main.mapManager.entities.portals.isEmpty() && isNotWaiting()) {
                 hero.roamMode();
                 findBox();
                 if (!tryCollectNearestBox() && (!drive.isMoving() || drive.isOutOfMap())) {
@@ -267,10 +309,9 @@ public class GGModule implements CustomModule {
 
     private Npc bestNpc(Location location) {
         return this.npcs.stream()
-                .filter(n -> (!n.ish))
-                .max(Comparator.<Npc>comparingDouble(n -> n.health.hpPercent())
-                        .thenComparing(n -> (n.npcInfo.priority * -1))
-                        .thenComparing(n -> (n.locationInfo.now.distance(location) * -1))).orElse(null);
+                .filter(n -> (!n.ish && n.health.hpPercent() > 0.25))
+                .min(Comparator.<Npc>comparingDouble(n -> (n.npcInfo.priority))
+                        .thenComparing(n -> (n.locationInfo.now.distance(location)))).orElse(null);
     }
 
 
@@ -327,6 +368,10 @@ public class GGModule implements CustomModule {
         } else {
             drive.move(current);
         }
+    }
+
+    public boolean isNotWaiting() {
+        return System.currentTimeMillis() > waiting;
     }
 
 }
