@@ -27,7 +27,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 15";
+    private String version = "v1 Beta 16";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -144,9 +144,17 @@ public class GGModule implements CustomModule {
                 drive.moveRandom();
                 API.keyboardClick(ggConfig.honorFormation);
             }
+        } else if ( main.hero.map.id == 1 || main.hero.map.id == 5 || main.hero.map.id == 9) {
+            hero.roamMode();
+            for (int i=0; i < main.mapManager.entities.portals.size();i++){
+                if (main.mapManager.entities.portals.get(i).target.id == ggConfig.idGate){
+                    this.main.setModule(new MapModule()).setTarget(main.starManager.byId(ggConfig.idGate));
+                    return;
+                }
+            }
         } else {
             hero.roamMode();
-            this.main.setModule(new MapModule()).setTarget(main.starManager.byId(ggConfig.idGate));
+            this.main.setModule(new MapModule()).setTarget(this.main.starManager.byName("Home Map"));
         }
     }
 
