@@ -30,7 +30,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 18";
+    private String version = "v1 Beta 19";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -193,17 +193,19 @@ public class GGModule implements CustomModule {
                 drive.moveRandom();
             }
         } else if ( main.hero.map.id == 1 || main.hero.map.id == 5 || main.hero.map.id == 9) {
-            if (ggConfig.idGate == 73){ ggConfig.idGate = 71; }
+            if (ggConfig.idGate == 73 || ggConfig.idGate == 72){ ggConfig.idGate = 71; }
             hero.roamMode();
             for (int i=0; i < main.mapManager.entities.portals.size();i++){
-                if (main.mapManager.entities.portals.get(i).target.id == ggConfig.idGate){
-                    this.main.setModule(new MapModule()).setTarget(main.starManager.byId(ggConfig.idGate));
+                if (main.mapManager.entities.portals.get(i).target.id == ggConfig.idGate ||
+                        (ggConfig.idGate == 53 && (main.mapManager.entities.portals.get(i).target.id == 52 ||
+                                main.mapManager.entities.portals.get(i).target.id == 51))) {
+                    this.main.setModule(new MapModule()).setTarget(main.mapManager.entities.portals.get(i).target);
                     return;
                 }
             }
         } else {
             hero.roamMode();
-            this.main.setModule(new MapModule()).setTarget(this.main.starManager.byName("Home Map"));
+            this.main.setModule(new MapModule()).setTarget(this.main.starManager.byId(ggConfig.idGate));
         }
     }
 
