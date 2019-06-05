@@ -4,23 +4,29 @@ import com.github.manolo8.darkbot.Main;
 import com.github.manolo8.darkbot.config.Config;
 import com.github.manolo8.darkbot.config.types.Option;
 import com.github.manolo8.darkbot.core.entities.Box;
+import com.github.manolo8.darkbot.core.entities.Npc;
+import com.github.manolo8.darkbot.core.entities.Ship;
 import com.github.manolo8.darkbot.core.itf.CustomModule;
 import com.github.manolo8.darkbot.backpage.HangarManager;
 import com.github.manolo8.darkbot.core.manager.HeroManager;
 import com.github.manolo8.darkbot.core.manager.StatsManager;
 import com.github.manolo8.darkbot.core.utils.Drive;
+import com.github.manolo8.darkbot.core.utils.Location;
 import com.github.manolo8.darkbot.modules.utils.NpcAttacker;
 import com.github.manolo8.darkbot.modules.utils.SafetyFinder;
 
 
+import java.util.Comparator;
+import java.util.List;
+
 import static com.github.manolo8.darkbot.Main.API;
+import static java.lang.Double.max;
+import static java.lang.Double.min;
+import static java.lang.Math.random;
 
 public class PaladiumModule implements CustomModule {
 
-    /**
-     * Paladium Module Test v0.0.8
-     * Made by @Dm94Dani
-     */
+    private String version = "Alpha v0.0.9";
 
     private HeroManager hero;
     private Drive drive;
@@ -31,12 +37,36 @@ public class PaladiumModule implements CustomModule {
     private long lastCheckupHangar = 0;
     private Main main;
     private long disconectTime = 0;
-    private int state = 0;
+    private enum State {
+        loading (0, "Loading"),
+        hangarAndMapBase (1, "Selling palladium"),
+        hangarBaseOtherMap (2, "Hangar Base - To 5-2"),
+        depositFullSwitchingHangar(3, "Deposit full, switching hangar"),
+        lootPaladium(4,"Loot paladium"),
+        hangarPallaOtherMap(5,"Hangar paladium - To 5-3"),
+        switchingToPalaHangar(6,"Switching to the palladium hangar"),
+        disconnecting(7,"Disconnecting"),
+        switchingHangar(8,"Switching Hangar"),
+        reloadGame(9,"Reloading the game");
+
+        private int id;
+        private String message;
+
+        State(int id, String message) {
+            this.id = id;
+            this.message = message;
+        }
+    }
+    private State currentStatus;
     private PaladiumConfig configPa;
     private HangarManager hangarManager;
 
-    private final LootModule lootModule;
     private final CollectorModule collectorModule;
+
+    private List<Ship> ships;
+    private List<Npc> npcs;
+    private int radiusFix;
+    NpcAttacker attack;
 
     public Object configuration() {
         return new PaladiumConfig();
@@ -60,7 +90,6 @@ public class PaladiumModule implements CustomModule {
     }
 
     public PaladiumModule() {
-        this.lootModule = new LootModule();
         this.collectorModule = new CollectorModule();
     }
 
@@ -74,7 +103,11 @@ public class PaladiumModule implements CustomModule {
         this.configPa = new PaladiumConfig();
         this.hangarManager = new HangarManager(main,main.backpage);
 
-        lootModule.install(main);
+        this.ships = main.mapManager.entities.ships;
+        this.npcs = main.mapManager.entities.npcs;
+        this.attack = new NpcAttacker(main);
+        currentStatus = State.loading;
+
         collectorModule.install(main);
 
         hangarManager.updateHangars();
@@ -83,13 +116,13 @@ public class PaladiumModule implements CustomModule {
 
     @Override
     public String status() {
-        return "Loot: " + lootModule.status() + " - Collect: " + collectorModule.status();
+        return  name() + " " + version + " | Status: " + currentStatus.message;
     }
 
     @Override
     public boolean canRefresh() {
         if(collectorModule.isNotWaiting()) {
-            return lootModule.canRefresh();
+            return lootCanRefresh();
         }
 
         return false;
@@ -106,39 +139,39 @@ public class PaladiumModule implements CustomModule {
         if (statsManager.deposit >= statsManager.depositTotal) {
             if (hangarActive.equalsIgnoreCase(configPa.hangarBase)) {
                 if (this.hero.map.id == 92){
-                    this.state = 1;
+                    this.currentStatus = State.hangarAndMapBase;
                 } else {
-                    this.state = 2;
+                    this.currentStatus = State.hangarBaseOtherMap;
                     hero.roamMode();
                     this.main.setModule(new MapModule()).setTarget(this.main.starManager.byId(92));
                 }
 
             } else {
-                this.state = 3;
+                this.currentStatus = State.depositFullSwitchingHangar;
                 disconectAndChangeHangar(configPa.hangarBase);
             }
 
         } else if(hangarActive.equalsIgnoreCase(configPa.hangarPalladium)) {
             if (this.hero.map.id == 93){
-                this.state = 4;
-                if (collectorModule.isNotWaiting() && lootModule.checkDangerousAndCurrentMap()) {
+                this.currentStatus = State.lootPaladium;
+                if (collectorModule.isNotWaiting()) {
                     main.guiManager.pet.setEnabled(true);
 
-                    if (lootModule.findTarget()) {
+                    if (findTarget()) {
 
                         collectorModule.findBox();
 
                         Box box = collectorModule.current;
 
                         if (box == null || box.locationInfo.distance(hero) > config.LOOT_COLLECT.RADIUS
-                                || lootModule.attack.target.health.hpPercent() < 0.25) {
-                            lootModule.moveToAnSafePosition();
+                                || attack.target.health.hpPercent() < 0.25) {
+                            moveToAnSafePosition();
                         } else {
                             collectorModule.tryCollectNearestBox();
                         }
 
-                        lootModule.ignoreInvalidTarget();
-                        lootModule.attack.doKillTargetTick();
+                        ignoreInvalidTarget();
+                        attack.doKillTargetTick();
 
                     } else {
                         hero.roamMode();
@@ -152,26 +185,26 @@ public class PaladiumModule implements CustomModule {
 
                 }
             } else {
-                this.state = 5;
+                this.currentStatus = State.hangarPallaOtherMap;
                 hero.roamMode();
                 this.main.setModule(new MapModule()).setTarget(this.main.starManager.byId(93));
                 return;
             }
         } else {
-            this.state = 6;
+            this.currentStatus = State.switchingToPalaHangar;
             disconectAndChangeHangar(configPa.hangarPalladium);
         }
     }
 
     public void disconectAndChangeHangar(String hangar) {
-        if (this.disconectTime == 0 && this.state != 7) {
-            this.state = 7;
+        if (this.disconectTime == 0 && this.currentStatus.id != 7) {
+            this.currentStatus = State.disconnecting;
             disconnect();
-        } else if (this.disconectTime <= System.currentTimeMillis() - 21000 && this.state != 8) {
+        } else if (this.disconectTime <= System.currentTimeMillis() - 21000 && this.currentStatus.id != 8) {
+            this.currentStatus = State.switchingHangar;
             hangarManager.changeHangar(hangar);
-            this.state = 8;
-        } else if (this.state == 8){
-            this.state = 9;
+        } else if (this.currentStatus.id == 8){
+            this.currentStatus = State.reloadGame;
             this.disconectTime = 0;
             API.handleRefresh();
         }
@@ -180,6 +213,104 @@ public class PaladiumModule implements CustomModule {
     public void disconnect() {
         API.keyboardClick(this.configPa.exitKey);
         this.disconectTime = System.currentTimeMillis();
+    }
+
+    /**
+     * Loot Module
+     */
+
+    public boolean lootCanRefresh() {
+        return attack.target == null;
+    }
+    boolean findTarget() {
+        return (attack.target = closestNpc(hero.locationInfo.now)) != null;
+    }
+
+    void ignoreInvalidTarget() {
+        if (!main.mapManager.isTarget(attack.target)) return;
+        double closestDist;
+        if (!(attack.target.npcInfo.ignoreOwnership || main.mapManager.isCurrentTargetOwned())
+                || (hero.locationInfo.distance(attack.target) > config.LOOT.NPC_DISTANCE_IGNORE) // Too far away from ship
+                || (closestDist = drive.closestDistance(attack.target.locationInfo.now)) > 650   // Too far into obstacle
+                || (closestDist > 500 && !attack.target.locationInfo.isMoving() // Inside obstacle, waiting & and regen shields
+                && (attack.target.health.shIncreasedIn(1000) || attack.target.health.shieldPercent() > 0.99))) {
+            attack.target.setTimerTo(5000);
+            hero.setTarget(attack.target = null);
+        }
+    }
+
+    void moveToAnSafePosition() {
+        Npc target = attack.target;
+        Location direction = drive.movingTo();
+        Location heroLoc = hero.locationInfo.now;
+        Location targetLoc = target.locationInfo.destinationInTime(400);
+
+        double distance = heroLoc.distance(target.locationInfo.now);
+        double angle = targetLoc.angle(heroLoc);
+        double radius = target.npcInfo.radius;
+
+        if (target != hero.target || attack.castingAbility()) radius = Math.min(500, radius);
+        if (!target.locationInfo.isMoving() && target.health.hpPercent() < 0.25) radius = Math.min(radius, 600);
+
+        if (target.npcInfo.noCircle) {
+            if (targetLoc.distance(direction) <= radius) return;
+            distance = 100 + random() * (radius - 110);
+            angle += (random() * 0.1) - 0.05;
+        } else {
+            if (distance > radius) {
+                radiusFix -= (distance - radius) / 2;
+                radiusFix = (int) max(radiusFix, -target.npcInfo.radius / 2);
+            } else {
+                radiusFix += (radius - distance) / 6;
+                radiusFix = (int) min(radiusFix, target.npcInfo.radius / 2);
+            }
+            distance = (radius += radiusFix);
+            // Moved distance + speed - distance to chosen radius same angle, divided by radius
+            angle += Math.max((hero.shipInfo.speed * 0.625) + (min(200, target.locationInfo.speed) * 0.625)
+                    - heroLoc.distance(Location.of(targetLoc, angle, radius)), 0) / radius;
+        }
+        direction = Location.of(targetLoc, angle, distance);
+
+        while (!drive.canMove(direction) && distance < 10000)
+            direction.toAngle(targetLoc, angle += 0.3, distance += 2);
+        if (distance >= 10000) direction.toAngle(targetLoc, angle, 500);
+
+        if (config.LOOT.RUN_CONFIG_IN_CIRCLE && target.health.hpPercent() < 0.25 &&
+                heroLoc.distance(direction) > target.npcInfo.radius * 2) {
+            hero.runMode();
+        } else {
+            hero.attackMode();
+        }
+
+        drive.move(direction);
+    }
+    private Npc closestNpc(Location location) {
+        int extraPriority = attack.hasTarget() &&
+                (hero.target == attack.target || hero.locationInfo.distance(attack.target) < 600)
+                ? 20 - (int)(attack.target.health.hpPercent() * 10) : 0;
+        return this.npcs.stream()
+                .filter(n -> (n == attack.target && hero.isAttacking(attack.target)) ||
+                        (drive.closestDistance(location) < 450 && shouldKill(n)))
+                .min(Comparator.<Npc>comparingInt(n -> n.npcInfo.priority - (n == attack.target ? extraPriority : 0))
+                        .thenComparing(n -> n.locationInfo.now.distance(location))).orElse(null);
+    }
+
+    private boolean shouldKill(Npc n) {
+        boolean attacked = this.isAttackedByOthers(n);
+        return n.npcInfo.kill &&
+                (n.npcInfo.ignoreAttacked || !attacked) && // Either ignore attacked, or not being attacked
+                (!n.npcInfo.attackSecond || attacked) &&    // Either don't want to attack second, or being attacked
+                (!n.npcInfo.passive || n.isAttacking(hero));
+    }
+
+    private boolean isAttackedByOthers(Npc npc) {
+        for (Ship ship : this.ships) {
+            if (ship.address == hero.address || ship.address == hero.pet.address
+                    || !ship.isAttacking(npc)) continue;
+            npc.setTimerTo(20_000);
+            return true;
+        }
+        return npc.isInTimer();
     }
 
 }
