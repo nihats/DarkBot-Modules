@@ -199,11 +199,11 @@ public class PaladiumModule implements CustomModule {
         } else if (this.disconectTime <= System.currentTimeMillis() - 21000 && this.currentStatus != State.SWITCHING_HANGAR) {
             this.currentStatus = State.SWITCHING_HANGAR;
             hangarManager.changeHangar(hangar);
+            updateDataHangars();
         } else if (this.currentStatus == State.SWITCHING_HANGAR){
             this.currentStatus = State.RELOAD_GAME;
             this.disconectTime = 0;
             API.handleRefresh();
-            updateDataHangars();
         }
     }
 
