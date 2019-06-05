@@ -26,7 +26,7 @@ import static java.lang.Math.random;
 
 public class PaladiumModule implements CustomModule {
 
-    private String version = "Alpha v0.0.9";
+    private String version = "Alpha v0.0.10";
 
     private HeroManager hero;
     private Drive drive;
@@ -128,10 +128,8 @@ public class PaladiumModule implements CustomModule {
 
     @Override
     public void tick() {
-        if (lastCheckupHangar <= System.currentTimeMillis() - 300000 && main.backpage.sidStatus().contains("OK")) {
-            hangarManager.updateHangars();
-            hangarActive = hangarManager.getActiveHangar();
-            lastCheckupHangar = System.currentTimeMillis();
+        if (lastCheckupHangar <= System.currentTimeMillis() - 300000){
+            updateDataHangars();
         }
 
         if (statsManager.deposit >= statsManager.depositTotal) {
@@ -205,12 +203,21 @@ public class PaladiumModule implements CustomModule {
             this.currentStatus = State.RELOAD_GAME;
             this.disconectTime = 0;
             API.handleRefresh();
+            updateDataHangars();
         }
     }
 
     public void disconnect() {
         API.keyboardClick(this.configPa.exitKey);
         this.disconectTime = System.currentTimeMillis();
+    }
+
+    private void updateDataHangars(){
+        if (main.backpage.sidStatus().contains("OK")) {
+            hangarManager.updateHangars();
+            hangarActive = hangarManager.getActiveHangar();
+            lastCheckupHangar = System.currentTimeMillis();
+        }
     }
 
     /**
