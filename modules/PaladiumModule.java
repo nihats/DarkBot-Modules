@@ -38,22 +38,20 @@ public class PaladiumModule implements CustomModule {
     private Main main;
     private long disconectTime = 0;
     private enum State {
-        loading (0, "Loading"),
-        hangarAndMapBase (1, "Selling palladium"),
-        hangarBaseOtherMap (2, "Hangar Base - To 5-2"),
-        depositFullSwitchingHangar(3, "Deposit full, switching hangar"),
-        lootPaladium(4,"Loot paladium"),
-        hangarPallaOtherMap(5,"Hangar paladium - To 5-3"),
-        switchingToPalaHangar(6,"Switching to the palladium hangar"),
-        disconnecting(7,"Disconnecting"),
-        switchingHangar(8,"Switching Hangar"),
-        reloadGame(9,"Reloading the game");
+        LOADING ("Loading"),
+        HANGAR_AND_MAP_BASE ( "Selling palladium"),
+        HANGAR_BASE_OTHER_MAP ( "Hangar Base - To 5-2"),
+        DEPOSIT_FULL_SWITCHING_HANGAR("Deposit full, switching hangar"),
+        LOOT_PALADIUM("Loot paladium"),
+        HANGAR_PALA_OTHER_MAP("Hangar paladium - To 5-3"),
+        SWITCHING_PALA_HANGAR("Switching to the palladium hangar"),
+        DISCONNECTING("Disconnecting"),
+        SWITCHING_HANGAR("Switching Hangar"),
+        RELOAD_GAME("Reloading the game");
 
-        private int id;
         private String message;
 
-        State(int id, String message) {
-            this.id = id;
+        State(String message) {
             this.message = message;
         }
     }
@@ -106,7 +104,7 @@ public class PaladiumModule implements CustomModule {
         this.ships = main.mapManager.entities.ships;
         this.npcs = main.mapManager.entities.npcs;
         this.attack = new NpcAttacker(main);
-        currentStatus = State.loading;
+        currentStatus = State.LOADING;
 
         collectorModule.install(main);
 
@@ -139,21 +137,21 @@ public class PaladiumModule implements CustomModule {
         if (statsManager.deposit >= statsManager.depositTotal) {
             if (hangarActive.equalsIgnoreCase(configPa.hangarBase)) {
                 if (this.hero.map.id == 92){
-                    this.currentStatus = State.hangarAndMapBase;
+                    this.currentStatus = State.HANGAR_AND_MAP_BASE;
                 } else {
-                    this.currentStatus = State.hangarBaseOtherMap;
+                    this.currentStatus = State.HANGAR_BASE_OTHER_MAP;
                     hero.roamMode();
                     this.main.setModule(new MapModule()).setTarget(this.main.starManager.byId(92));
                 }
 
             } else {
-                this.currentStatus = State.depositFullSwitchingHangar;
+                this.currentStatus = State.DEPOSIT_FULL_SWITCHING_HANGAR;
                 disconectAndChangeHangar(configPa.hangarBase);
             }
 
         } else if(hangarActive.equalsIgnoreCase(configPa.hangarPalladium)) {
             if (this.hero.map.id == 93){
-                this.currentStatus = State.lootPaladium;
+                this.currentStatus = State.LOOT_PALADIUM;
                 if (collectorModule.isNotWaiting()) {
                     main.guiManager.pet.setEnabled(true);
 
@@ -185,26 +183,26 @@ public class PaladiumModule implements CustomModule {
 
                 }
             } else {
-                this.currentStatus = State.hangarPallaOtherMap;
+                this.currentStatus = State.HANGAR_PALA_OTHER_MAP;
                 hero.roamMode();
                 this.main.setModule(new MapModule()).setTarget(this.main.starManager.byId(93));
                 return;
             }
         } else {
-            this.currentStatus = State.switchingToPalaHangar;
+            this.currentStatus = State.SWITCHING_PALA_HANGAR;
             disconectAndChangeHangar(configPa.hangarPalladium);
         }
     }
 
     public void disconectAndChangeHangar(String hangar) {
-        if (this.disconectTime == 0 && this.currentStatus.id != 7) {
-            this.currentStatus = State.disconnecting;
+        if (this.disconectTime == 0 && this.currentStatus != State.DISCONNECTING) {
+            this.currentStatus = State.DISCONNECTING;
             disconnect();
-        } else if (this.disconectTime <= System.currentTimeMillis() - 21000 && this.currentStatus.id != 8) {
-            this.currentStatus = State.switchingHangar;
+        } else if (this.disconectTime <= System.currentTimeMillis() - 21000 && this.currentStatus != State.SWITCHING_HANGAR) {
+            this.currentStatus = State.SWITCHING_HANGAR;
             hangarManager.changeHangar(hangar);
-        } else if (this.currentStatus.id == 8){
-            this.currentStatus = State.reloadGame;
+        } else if (this.currentStatus == State.SWITCHING_HANGAR){
+            this.currentStatus = State.RELOAD_GAME;
             this.disconectTime = 0;
             API.handleRefresh();
         }
