@@ -38,7 +38,7 @@ public class PaladiumModule implements CustomModule {
     private Main main;
     private long disconectTime = 0;
     private enum State {
-        LOADING ("Loading"),
+        WAIT ("Waiting"),
         HANGAR_AND_MAP_BASE ( "Selling palladium"),
         HANGAR_BASE_OTHER_MAP ( "Hangar Base - To 5-2"),
         DEPOSIT_FULL_SWITCHING_HANGAR("Deposit full, switching hangar"),
@@ -47,7 +47,8 @@ public class PaladiumModule implements CustomModule {
         SWITCHING_PALA_HANGAR("Switching to the palladium hangar"),
         DISCONNECTING("Disconnecting"),
         SWITCHING_HANGAR("Switching Hangar"),
-        RELOAD_GAME("Reloading the game");
+        RELOAD_GAME("Reloading the game"),
+        READY("Ready");;
 
         private String message;
 
@@ -56,6 +57,9 @@ public class PaladiumModule implements CustomModule {
         }
     }
     private State currentStatus;
+    private State subStatus;
+    private long waitTime = 0;
+
     private PaladiumConfig configPa;
     private HangarManager hangarManager;
 
@@ -104,7 +108,8 @@ public class PaladiumModule implements CustomModule {
         this.ships = main.mapManager.entities.ships;
         this.npcs = main.mapManager.entities.npcs;
         this.attack = new NpcAttacker(main);
-        currentStatus = State.LOADING;
+        currentStatus = State.WAIT;
+        subStatus = State.READY;
 
         collectorModule.install(main);
 
@@ -128,6 +133,17 @@ public class PaladiumModule implements CustomModule {
 
     @Override
     public void tick() {
+        if (subStatus == State.WAIT ) {
+            if (System.currentTimeMillis() - 20000 >= waitTime) {
+                subStatus = State.READY;
+            } else if (waitTime == 0) {
+                waitTime = System.currentTimeMillis();
+                return;
+            } else {
+                return;
+            }
+        }
+
         if (lastCheckupHangar <= System.currentTimeMillis() - 300000){
             updateDataHangars();
         }
@@ -195,13 +211,16 @@ public class PaladiumModule implements CustomModule {
     public void disconectAndChangeHangar(String hangar) {
         if (this.disconectTime == 0 && this.currentStatus != State.DISCONNECTING) {
             this.currentStatus = State.DISCONNECTING;
+            this.subStatus = State.WAIT;
             disconnect();
         } else if (this.disconectTime <= System.currentTimeMillis() - 21000 && this.currentStatus != State.SWITCHING_HANGAR) {
             this.currentStatus = State.SWITCHING_HANGAR;
+            this.subStatus = State.WAIT;
             hangarManager.changeHangar(hangar);
             updateDataHangars();
         } else if (this.disconectTime <= System.currentTimeMillis() - 100000 && this.currentStatus == State.SWITCHING_HANGAR){
             this.currentStatus = State.RELOAD_GAME;
+            this.subStatus = State.WAIT;
             this.disconectTime = 0;
             API.handleRefresh();
         }
