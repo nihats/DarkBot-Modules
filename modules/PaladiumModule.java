@@ -26,7 +26,7 @@ import static java.lang.Math.random;
 
 public class PaladiumModule implements CustomModule {
 
-    private String version = "Alpha v0.0.10";
+    private String version = "Alpha v0.0.11";
 
     private HeroManager hero;
     private Drive drive;
@@ -133,7 +133,7 @@ public class PaladiumModule implements CustomModule {
         }
 
         if (statsManager.deposit >= statsManager.depositTotal) {
-            if (hangarActive.equalsIgnoreCase(configPa.hangarBase)) {
+            if (hangarActive != null && hangarActive.equalsIgnoreCase(configPa.hangarBase)) {
                 if (this.hero.map.id == 92){
                     this.currentStatus = State.HANGAR_AND_MAP_BASE;
                 } else {
@@ -147,7 +147,7 @@ public class PaladiumModule implements CustomModule {
                 disconectAndChangeHangar(configPa.hangarBase);
             }
 
-        } else if(hangarActive.equalsIgnoreCase(configPa.hangarPalladium)) {
+        } else if (hangarActive != null && hangarActive.equalsIgnoreCase(configPa.hangarPalladium)) {
             if (this.hero.map.id == 93){
                 this.currentStatus = State.LOOT_PALADIUM;
                 if (collectorModule.isNotWaiting()) {
@@ -200,7 +200,7 @@ public class PaladiumModule implements CustomModule {
             this.currentStatus = State.SWITCHING_HANGAR;
             hangarManager.changeHangar(hangar);
             updateDataHangars();
-        } else if (this.currentStatus == State.SWITCHING_HANGAR){
+        } else if (this.disconectTime <= System.currentTimeMillis() - 100000 && this.currentStatus == State.SWITCHING_HANGAR){
             this.currentStatus = State.RELOAD_GAME;
             this.disconectTime = 0;
             API.handleRefresh();
