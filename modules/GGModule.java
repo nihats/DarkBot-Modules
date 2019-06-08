@@ -30,7 +30,7 @@ import static java.lang.Double.max;
 import static java.lang.Double.min;
 
 public class GGModule implements CustomModule {
-    private String version = "v1 Beta 19";
+    private String version = "v1 Beta 20";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -74,11 +74,14 @@ public class GGModule implements CustomModule {
 
         @Option("Take materials")
         public boolean takeBoxes = false;
+
+        @Option("Send NPCs to corner")
+        public boolean sendNPCsCorner = true;
     }
 
     @Override
     public String name() {
-        return "GG Module";
+        return "GG Module by @Dm94Dani";
     }
 
     public GGModule() {
@@ -212,7 +215,7 @@ public class GGModule implements CustomModule {
     private boolean findTarget() {
         if (attack.target == null || attack.target.removed) {
             if (!npcs.isEmpty()) {
-                if (!allLowLife()) {
+                if (ggConfig.sendNPCsCorner && !allLowLife()) {
                     attack.target = bestNpc(hero.locationInfo.now);
                 } else {
                     attack.target = closestNpc(hero.locationInfo.now);
@@ -227,7 +230,7 @@ public class GGModule implements CustomModule {
     }
 
     private void removeLowHeal() {
-        if (main.mapManager.isTarget(attack.target) && (attack.target.health.hpPercent() < 0.25)) {
+        if (ggConfig.sendNPCsCorner && main.mapManager.isTarget(attack.target) && attack.target.health.hpPercent() < 0.25) {
             if (!allLowLife()) {
                 if(isLowHealh(attack.target)){
                     attack.target = null;
