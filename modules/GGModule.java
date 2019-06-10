@@ -192,7 +192,7 @@ public class GGModule implements CustomModule {
                     }
                 }
             } else if (!drive.isMoving()) {
-                //hero.setMode(ggConfig.Honor);
+                hero.setMode(ggConfig.Honor);
                 drive.moveRandom();
             }
         } else if ( main.hero.map.id == 1 || main.hero.map.id == 5 || main.hero.map.id == 9) {
