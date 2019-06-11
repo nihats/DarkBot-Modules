@@ -88,7 +88,6 @@ public class GGModule implements CustomModule {
         this.collectorModule = new CollectorModule();
     }
 
-
     @Override
     public void install(Main main) {
         this.main = main;
@@ -165,7 +164,7 @@ public class GGModule implements CustomModule {
     @Override
     public void tick() {
         if (!configSave) {
-            loadConfig();
+            saveConfig();
             configSave = true;
         }
 
