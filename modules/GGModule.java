@@ -67,7 +67,7 @@ public class GGModule implements CustomModule {
         @Editor(JShipConfigField.class)
         public Config.ShipConfig Honor = new Config.ShipConfig();
 
-        @Option("GG Gate")
+        @Option("GG Gate - GG γ make ABG")
         @Editor(value = JListField.class)
         @Options(value = GGSuplier.class)
         public int idGate = 51;
