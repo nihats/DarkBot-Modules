@@ -80,10 +80,10 @@ public class PaladiumModule extends LootNCollectorModule implements CustomModule
         public char exitKey = 'l';
 
         @Option(value = "Hangar Palladium", description = "Ship 5-3 Hangar ID")
-        public String hangarPalladium = "2485809";
+        public String hangarPalladium = "";
 
         @Option(value = "Hangar Base", description = "Ship 5-2 Hangar ID")
-        public String hangarBase = "2530774";
+        public String hangarBase = "";
 
     }
 
