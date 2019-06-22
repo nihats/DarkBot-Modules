@@ -29,8 +29,8 @@ import java.util.function.Supplier;
 import static java.lang.Double.max;
 import static java.lang.Double.min;
 
-public class GGModule implements CustomModule {
-    private String version = "v1 Beta 21";
+public class GGModule extends CollectorModule implements CustomModule<GGModule.GGConfig> {
+    private String version = "v1 Beta 22";
     private static final double TAU = Math.PI * 2;
 
     private Main main;
@@ -40,27 +40,13 @@ public class GGModule implements CustomModule {
     private Drive drive;
     private Location direction;
     private int radiusFix;
-    private GGConfig ggConfig = new GGConfig();
-
+    private GGConfig ggConfig;
     private boolean repairing;
     private int rangeNPCFix = 0;
     private long lastCheck = System.currentTimeMillis();
     private int lasNpcHealth = 0;
     private int lasPlayerHealth = 0;
     NpcAttacker attack;
-
-    private final CollectorModule collectorModule;
-
-    private static final Gson GSON = new GsonBuilder()
-            .setPrettyPrinting()
-            .setLenient()
-            .registerTypeHierarchyAdapter(byte[].class, new ByteArrayToBase64TypeAdapter()).create();
-    private boolean configSave = false;
-
-
-    public Object configuration() {
-        return ggConfig;
-    }
 
     public static class GGConfig {
         @Option(value = "Honor config", description = "Used on finish wave")
@@ -80,25 +66,25 @@ public class GGModule implements CustomModule {
     }
 
     @Override
-    public String name() {
-        return "GG Module by @Dm94Dani";
-    }
-
-    public GGModule() {
-        this.collectorModule = new CollectorModule();
-        loadConfig();
-    }
+    public String name() { return "GG Module"; }
 
     @Override
-    public void install(Main main) {
+    public String author() { return "@Dm94Dani"; }
+
+    @Override
+    public void install(Main main, GGConfig config) {
         this.main = main;
         this.config = main.config;
         this.attack = new NpcAttacker(main);
         this.hero = main.hero;
         this.drive = main.hero.drive;
         this.npcs = main.mapManager.entities.npcs;
+        this.ggConfig = config;
+    }
 
-        collectorModule.install(main);
+    @Override
+    public Class configuration() {
+        return GGConfig.class;
     }
 
     public static class GGSuplier implements Supplier<OptionList> {
@@ -127,29 +113,6 @@ public class GGModule implements CustomModule {
         }
     }
 
-    private void loadConfig() {
-        File config = new File("ggconfig.json");
-        if (!config.exists()) {
-            saveConfig();
-            return;
-        }
-        try (InputStreamReader reader = new InputStreamReader(new FileInputStream(config), StandardCharsets.UTF_8)) {
-            this.ggConfig = GSON.fromJson(reader, GGConfig.class);
-            if (this.ggConfig == null) this.ggConfig = new GGConfig();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void saveConfig() {
-        File config = new File("ggconfig.json");
-        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(config), StandardCharsets.UTF_8)) {
-            GSON.toJson(this.ggConfig, writer);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     @Override
     public boolean canRefresh() {
         return attack.target == null;
@@ -157,16 +120,12 @@ public class GGModule implements CustomModule {
 
     @Override
     public String status() {
-        return name() + " " + version + " | " + (repairing ? "Repairing" :
+        return id() + " " + version + " | " + (repairing ? "Repairing" :
                 attack.hasTarget() ? attack.status() : "Roaming") + " | NPCs: "+this.npcs.size();
     }
 
     @Override
     public void tick() {
-        if (!configSave) {
-            saveConfig();
-            configSave = true;
-        }
 
         if (main.hero.map.gg) {
             main.guiManager.pet.setEnabled(true);
@@ -175,21 +134,9 @@ public class GGModule implements CustomModule {
                 attack.doKillTargetTick();
                 removeLowHeal();
                 moveToAnSafePosition();
-            } else if (!main.mapManager.entities.portals.isEmpty() && collectorModule.isNotWaiting()) {
+            } else if (!main.mapManager.entities.portals.isEmpty() && ggConfig.takeBoxes && super.isNotWaiting()) {
                 hero.roamMode();
-
-                if (ggConfig.takeBoxes) {
-                    collectorModule.findBox();
-                }
-                if (!collectorModule.tryCollectNearestBox() && (!drive.isMoving() || drive.isOutOfMap())) {
-                    if (hero.health.hpPercent() >= config.GENERAL.SAFETY.REPAIR_TO_HP) {
-                        repairing = false;
-                        this.main.setModule(new MapModule()).setTarget(main.starManager.byId(main.mapManager.entities.portals.get(0).id));
-                    } else {
-                        drive.moveRandom();
-                        repairing = true;
-                    }
-                }
+                super.tick();
             } else if (!drive.isMoving()) {
                 hero.setMode(ggConfig.Honor);
                 drive.moveRandom();
